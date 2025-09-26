@@ -11,10 +11,23 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+const (
+	l2_playerLogicWidth  = 60
+	l2_playerLogicHeight = 60
+	l2_enemyLogicWidth   = 80
+	l2_enemyLogicHeight  = 80
+	l2_projLogicWidth    = 40
+	l2_projLogicHeight   = 40
+
+	l2_gravity         = 0.6
+	l2_jumpStrength    = -12.0
+	l2_moveSpeed       = 4.0
+	l2_projectileSpeed = 3.5
+)
+
 type Projectile struct {
 	X, Y   float64
 	VX, VY float64
-	Img    *ebiten.Image
 }
 
 type Level2 struct {
@@ -29,45 +42,32 @@ type Level2 struct {
 	enemyX, enemyY     float64
 	enemyShootTimer    int
 	projectiles        []*Projectile
-	playerImg          *ebiten.Image
-	platformImg        *ebiten.Image
-	altarImg           *ebiten.Image
-	enemyImg           *ebiten.Image
-	background         *ebiten.Image
+
+	themeImg      *ebiten.Image
+	playerImg     *ebiten.Image
+	platformImg   *ebiten.Image
+	altarImg      *ebiten.Image
+	enemyImg      *ebiten.Image
+	projectileImg *ebiten.Image
 }
 
-const (
-	gravity         = 0.6
-	jumpStrength    = -12.0
-	moveSpeed       = 4.0
-	playerWidth     = 32
-	playerHeight    = 32
-	projectileSpeed = 3.5
-)
-
 func NewLevel2() *Level2 {
-	player := ebiten.NewImage(playerWidth, playerHeight)
-	player.Fill(color.RGBA{R: 210, G: 105, B: 30, A: 255})
+	themeImg := loadImage("assets/level2/level2_theme.png")
+	playerImg := loadImage("assets/level2/level2_character.png")
+	enemyImg := loadImage("assets/level2/level2_enemy.png")
+	altarImg := loadImage("assets/level2/level2_monolith.png")
+	projectileImg := loadImage("assets/level2/level2_bomb.png")
 
-	platform := ebiten.NewImage(1, 1)
-	platform.Fill(color.RGBA{R: 34, G: 139, B: 34, A: 255})
-
-	altar := ebiten.NewImage(48, 64)
-	altar.Fill(color.RGBA{R: 255, G: 0, B: 0, A: 255})
-
-	enemy := ebiten.NewImage(32, 32)
-	enemy.Fill(color.RGBA{R: 128, G: 0, B: 128, A: 255})
-
-	bg := ebiten.NewImage(screenWidth, screenHeight)
-	bg.Fill(color.RGBA{R: 173, G: 216, B: 230, A: 255})
+	platformImg := ebiten.NewImage(1, 1)
+	// --- THIS IS THE ONLY CHANGE ---
+	// Changed the platform color from green to grey.
+	platformImg.Fill(color.RGBA{R: 105, G: 105, B: 105, A: 255})
 
 	platforms := []image.Rectangle{
-		image.Rect(0, 440, 640, 480), // Floor
-		image.Rect(0, 340, 150, 360), // Start platform
-		// --- THIS IS THE FIX ---
-		// Moved the cover wall and the platform it's on closer to the start.
-		image.Rect(210, 250, 230, 440), // Cover wall (Moved left)
-		image.Rect(230, 250, 380, 270), // Mid platform (Moved left)
+		image.Rect(0, 440, 640, 480),   // Floor
+		image.Rect(0, 340, 150, 360),   // Start platform
+		image.Rect(210, 250, 230, 440), // Cover wall
+		image.Rect(230, 250, 380, 270), // Mid platform
 		image.Rect(480, 120, 640, 140), // Enemy platform
 		image.Rect(0, 150, 150, 170),   // Altar platform
 	}
@@ -80,13 +80,14 @@ func NewLevel2() *Level2 {
 		platforms:       platforms,
 		altar:           altarRect,
 		enemyX:          480,
-		enemyY:          120 - 32,
+		enemyY:          120 - l2_enemyLogicHeight,
 		enemyShootTimer: 90,
-		playerImg:       player,
-		platformImg:     platform,
-		altarImg:        altar,
-		enemyImg:        enemy,
-		background:      bg,
+		themeImg:        themeImg,
+		playerImg:       playerImg,
+		platformImg:     platformImg,
+		altarImg:        altarImg,
+		enemyImg:        enemyImg,
+		projectileImg:   projectileImg,
 	}
 	return l2
 }
@@ -102,16 +103,15 @@ func (l *Level2) Update() {
 		return
 	}
 
-	// --- HORIZONTAL MOVEMENT & COLLISION ---
 	l.playerVX = 0
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
-		l.playerVX = -moveSpeed
+		l.playerVX = -l2_moveSpeed
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
-		l.playerVX = moveSpeed
+		l.playerVX = l2_moveSpeed
 	}
 	l.playerX += l.playerVX
-	playerRect := image.Rect(int(l.playerX), int(l.playerY), int(l.playerX)+playerWidth, int(l.playerY)+playerHeight)
+	playerRect := image.Rect(int(l.playerX), int(l.playerY), int(l.playerX)+l2_playerLogicWidth, int(l.playerY)+l2_playerLogicHeight)
 	for _, p := range l.platforms {
 		if playerRect.Overlaps(p) {
 			l.playerX -= l.playerVX
@@ -119,15 +119,14 @@ func (l *Level2) Update() {
 		}
 	}
 
-	// --- VERTICAL MOVEMENT & COLLISION ---
-	l.playerVY += gravity
+	l.playerVY += l2_gravity
 	l.playerY += l.playerVY
 	l.onGround = false
-	playerRect = image.Rect(int(l.playerX), int(l.playerY), int(l.playerX)+playerWidth, int(l.playerY)+playerHeight)
+	playerRect = image.Rect(int(l.playerX), int(l.playerY), int(l.playerX)+l2_playerLogicWidth, int(l.playerY)+l2_playerLogicHeight)
 	for _, p := range l.platforms {
 		if playerRect.Overlaps(p) {
 			if l.playerVY > 0 {
-				l.playerY = float64(p.Min.Y - playerHeight)
+				l.playerY = float64(p.Min.Y - l2_playerLogicHeight)
 				l.playerVY = 0
 				l.onGround = true
 			} else if l.playerVY < 0 {
@@ -137,43 +136,34 @@ func (l *Level2) Update() {
 		}
 	}
 
-	// --- JUMP INPUT ---
 	if l.onGround && inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		l.playerVY = jumpStrength
+		l.playerVY = l2_jumpStrength
 	}
 
-	// --- ENEMY LOGIC ---
 	l.enemyShootTimer--
 	if l.enemyShootTimer <= 0 {
-		projImg := ebiten.NewImage(10, 10)
-		projImg.Fill(color.White)
+		spawnX := l.enemyX - l2_projLogicWidth
+		spawnY := l.enemyY + (l2_enemyLogicHeight / 2) - (l2_projLogicHeight / 2)
 
-		spawnX := l.enemyX + (playerWidth / 2) - 5
-		spawnY := l.enemyY + (playerHeight / 2) - 5
-
-		dirX := l.playerX - spawnX
-		dirY := l.playerY - spawnY
+		dirX := (l.playerX + l2_playerLogicWidth/2) - spawnX
+		dirY := (l.playerY + l2_playerLogicHeight/2) - spawnY
 		length := math.Sqrt(dirX*dirX + dirY*dirY)
 		proj := &Projectile{
-			X:   spawnX,
-			Y:   spawnY,
-			VX:  (dirX / length) * projectileSpeed,
-			VY:  (dirY / length) * projectileSpeed,
-			Img: projImg,
+			X:  spawnX,
+			Y:  spawnY,
+			VX: (dirX / length) * l2_projectileSpeed,
+			VY: (dirY / length) * l2_projectileSpeed,
 		}
 		l.projectiles = append(l.projectiles, proj)
-		l.enemyShootTimer = 120 // Reset timer (2 seconds)
+		l.enemyShootTimer = 120
 	}
 
-	// --- PROJECTILE LOGIC ---
-	playerRect = image.Rect(int(l.playerX), int(l.playerY), int(l.playerX)+playerWidth, int(l.playerY)+playerHeight)
+	playerRect = image.Rect(int(l.playerX), int(l.playerY), int(l.playerX)+l2_playerLogicWidth, int(l.playerY)+l2_playerLogicHeight)
 	for i := len(l.projectiles) - 1; i >= 0; i-- {
 		p := l.projectiles[i]
 		p.X += p.VX
 		p.Y += p.VY
-
-		projRect := p.Img.Bounds().Add(image.Pt(int(p.X), int(p.Y)))
-
+		projRect := image.Rect(int(p.X), int(p.Y), int(p.X)+l2_projLogicWidth, int(p.Y)+l2_projLogicHeight)
 		if projRect.Overlaps(playerRect) {
 			l.playerHealth--
 			l.projectiles = append(l.projectiles[:i], l.projectiles[i+1:]...)
@@ -182,7 +172,6 @@ func (l *Level2) Update() {
 			}
 			continue
 		}
-
 		for _, plat := range l.platforms {
 			if projRect.Overlaps(plat) {
 				l.projectiles = append(l.projectiles[:i], l.projectiles[i+1:]...)
@@ -191,36 +180,48 @@ func (l *Level2) Update() {
 		}
 	}
 
-	// --- OBJECTIVE CHECK ---
 	if playerRect.Overlaps(l.altar) {
 		l.isComplete = true
 	}
 }
 
 func (l *Level2) Draw(screen *ebiten.Image) {
-	screen.DrawImage(l.background, nil)
+	bgOpts := &ebiten.DrawImageOptions{}
+	bgW, bgH := l.themeImg.Size()
+	bgOpts.GeoM.Scale(screenWidth/float64(bgW), screenHeight/float64(bgH))
+	screen.DrawImage(l.themeImg, bgOpts)
+
 	for _, p := range l.platforms {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(float64(p.Dx()), float64(p.Dy()))
 		op.GeoM.Translate(float64(p.Min.X), float64(p.Min.Y))
 		screen.DrawImage(l.platformImg, op)
 	}
+
 	altarOps := &ebiten.DrawImageOptions{}
+	aW, aH := l.altarImg.Size()
+	altarOps.GeoM.Scale(float64(l.altar.Dx())/float64(aW), float64(l.altar.Dy())/float64(aH))
 	altarOps.GeoM.Translate(float64(l.altar.Min.X), float64(l.altar.Min.Y))
 	screen.DrawImage(l.altarImg, altarOps)
 
 	enemyOps := &ebiten.DrawImageOptions{}
+	eW, eH := l.enemyImg.Size()
+	enemyOps.GeoM.Scale(l2_enemyLogicWidth/float64(eW), l2_enemyLogicHeight/float64(eH))
 	enemyOps.GeoM.Translate(l.enemyX, l.enemyY)
 	screen.DrawImage(l.enemyImg, enemyOps)
 
 	playerOps := &ebiten.DrawImageOptions{}
+	pW, pH := l.playerImg.Size()
+	playerOps.GeoM.Scale(l2_playerLogicWidth/float64(pW), l2_playerLogicHeight/float64(pH))
 	playerOps.GeoM.Translate(l.playerX, l.playerY)
 	screen.DrawImage(l.playerImg, playerOps)
 
 	for _, p := range l.projectiles {
 		op := &ebiten.DrawImageOptions{}
+		projW, projH := l.projectileImg.Size()
+		op.GeoM.Scale(l2_projLogicWidth/float64(projW), l2_projLogicHeight/float64(projH))
 		op.GeoM.Translate(p.X, p.Y)
-		screen.DrawImage(p.Img, op)
+		screen.DrawImage(l.projectileImg, op)
 	}
 
 	healthText := fmt.Sprintf("Health: %d", l.playerHealth)

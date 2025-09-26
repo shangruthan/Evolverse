@@ -65,10 +65,10 @@ type Level1 struct {
 }
 
 func NewLevel1() *Level1 {
-	bgImg := loadImage("assets/level1_theme.png")
-	playerImg := loadImage("assets/level1_character.png")
-	bombImg := loadImage("assets/level1_bomb.png")
-	powerupImg := loadImage("assets/level1_powerup.png")
+	bgImg := loadImage("assets/level1/level1_theme.png")
+	playerImg := loadImage("assets/level1/level1_character.png")
+	bombImg := loadImage("assets/level1/level1_bomb.png")
+	powerupImg := loadImage("assets/level1/level1_powerup.png")
 
 	groundH := 40.0
 
