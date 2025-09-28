@@ -91,9 +91,9 @@ A space explorer shifts between past/future via a rocket monolith, collects an a
 ![Level 4 Future Screenshot](game_preview/space_time_frontier2.png)
 
 ## Gameplay Video
-Watch a full playthrough:
 
-![video gameplay](https://youtu.be/u9lXzmOWx04)
+Watch the full gameplay on [YouTube](https://youtu.be/u9lXzmOWx04)
+
 
 ## Technical Details
 - **Tech Stack**:
