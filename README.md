@@ -93,7 +93,7 @@ A space explorer shifts between past/future via a rocket monolith, collects an a
 ## Gameplay Video
 Watch a full playthrough:
 
-https://github.com/user-attachments/assets/3b9766a8-2f46-4d45-a1da-3a90a970a7e5
+(game_preview/game_recording.mp4)
 
 ## Technical Details
 - **Tech Stack**:
